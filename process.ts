@@ -1,82 +1,127 @@
-import { encode, decode } from "./deps.ts";
-import { poll } from "./util.ts";
+import { watch, WatchOptions } from "./deps.ts";
 
 type OutputChannel = "stdout" | "stderr";
-type EventHandler = (event: Event) => Promise<void> | void;
+type EventHandler = (event: Event) => void | null;
+type CustomEventHandler = (event: CustomEvent) => any;
 
-export const processes = new Set<Plex>();
+type ProcessParams = {
+  name: string;
+  cmd: string;
+};
 
-export class Plex extends EventTarget {
+const { run, toAsyncIterator } = Deno;
+
+class Process extends EventTarget {
   readonly name: string;
   readonly cmd: string;
-  readonly process: Deno.Process;
+  public process: Deno.Process | undefined;
 
-  constructor({ name, cmd, process }) {
+  constructor({ name, cmd }: ProcessParams) {
     super();
     this.name = name;
-    this.process = process;
+    this.cmd = cmd;
   }
 
-  on(type: OutputChannel, handler: EventHandler) {
-    super.addEventListener(type, handler);
+  start() {
+    this.process = run({
+      args: this.cmd.split(/\s+/g),
+      stdout: "piped",
+      stderr: "piped"
+    });
+
+    this.publishOutput("stdout");
+    this.publishOutput("stderr");
+
     return this;
   }
 
-  off(type: OutputChannel, handler: EventHandler) {
-    super.removeEventListener(type, handler);
-    return this;
+  async complete() {
+    return this.process?.status();
   }
 
   kill() {
-    kill(this);
+    if (!this.process) return;
+    this.process.kill(1);
+  }
+
+  on(type: OutputChannel, handler: CustomEventHandler) {
+    super.addEventListener(type, handler as EventHandler);
+    return this;
+  }
+
+  off(type: OutputChannel, handler: CustomEventHandler) {
+    super.removeEventListener(type, handler as EventHandler);
+    return this;
+  }
+
+  watch(options: WatchOptions) {
+    watch({
+      ...options,
+      handle: (e: any) => {
+        console.log(e);
+        this.kill();
+        this.start();
+      }
+    });
+    return this;
+  }
+
+  private async publishOutput(channel: OutputChannel): Promise<void> {
+    if (!this.process) return;
+    for await (const message of toAsyncIterator(this.process[channel]!)) {
+      this.dispatchEvent(
+        new CustomEvent(channel, {
+          detail: message
+        })
+      );
+    }
   }
 }
 
-function createProcess(name: string, cmd: string): Plex {
-  const process = Deno.run({
-    args: cmd.split(/\s+/g),
-    stdout: "piped",
-    stderr: "piped"
-  });
+class Plex {
+  private processes: Set<Process>;
 
-  const plex = new Plex({ name, cmd, process });
-  processes.add(plex);
-  syncOutput(plex, "stdout").catch((e: Error) => handleProcessError(plex, e));
-  syncOutput(plex, "stderr").catch((e: Error) => handleProcessError(plex, e));
+  constructor(processes: Process[]) {
+    this.processes = new Set(processes);
+  }
 
-  return plex;
-}
+  listen(
+    handler: CustomEventHandler,
+    channels: OutputChannel[] = ["stdout", "stderr"]
+  ) {
+    for (const p of this.processes) {
+      channels.forEach(channel => {
+        p.on(channel, handler);
+        p.on(channel, handler);
+      });
+    }
+    return this;
+  }
 
-async function syncOutput(plex: Plex, channel: OutputChannel): Promise<void> {
-  for await (const message of Deno.toAsyncIterator(plex.process[channel])) {
-    plex.dispatchEvent(
-      new CustomEvent(channel, {
-        detail: encode(decode(message).trim())
-      })
-    );
+  ignore(
+    handler: CustomEventHandler,
+    channels: OutputChannel[] = ["stdout", "stderr"]
+  ) {
+    for (const p of this.processes) {
+      channels.forEach(channel => {
+        p.off(channel, handler);
+        p.off(channel, handler);
+      });
+    }
+    return this;
+  }
+
+  start(handler?: CustomEventHandler) {
+    if (typeof handler === "function") {
+      this.listen(handler);
+    }
+    this.processes.forEach(p => p.start());
+    return this;
+  }
+
+  complete() {
+    return Promise.all([...this.processes].map(p => p.complete()));
   }
 }
 
-async function handleProcessError(plex: Plex, err: Error) {
-  plex.dispatchEvent(new CustomEvent("error", err as CustomEventInit));
-  await tryRestart(plex);
-  kill(plex);
-}
-
-function tryRestart(plex: Plex) {
-  plex.dispatchEvent(
-    new CustomEvent("stderr", {
-      detail: encode("Error: attempting restart")
-    })
-  );
-  return poll({
-    fn: () => !!createProcess(plex.name, plex.cmd)
-  });
-}
-
-function kill(plex: Plex) {
-  plex.process.kill(0);
-  processes.delete(plex);
-}
-
-export { createProcess };
+export { Plex, Process, ProcessParams };

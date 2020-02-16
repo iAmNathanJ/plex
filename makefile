@@ -2,7 +2,7 @@
 .PHONY: fmt
 
 test:
-	deno test --allow-env --allow-write --allow-net **/*.test.ts
+	deno test --allow-run *.test.ts
 
 fmt:
-	deno fmt **/*.ts
+	deno fmt *.ts
