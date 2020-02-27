@@ -1,6 +1,6 @@
 # `Plex`
 
-A simple multiplex process runner for [Deno].
+Simple process runner for [Deno] - a thin wrapper around `Deno.run`.
 
 ## Usage
 
@@ -86,5 +86,5 @@ await new Plex([
 ```
 
 [Deno]: https://deno.land/
-[fs-poll]: https://wut
+[fs-poll]: https://github.com/iAmNathanJ/fs-poll
 [fsEvents]: https://github.com/denoland/deno/pull/3452
