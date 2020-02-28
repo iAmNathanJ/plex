@@ -43,3 +43,6 @@ Deno.test("Plex runs multiple processes", async () => {
   assertEquals(output[0], "testing 1");
   assertEquals(output[1], "testing 2");
 });
+
+// Deno.test("Process.watch calls the passed handler", () => {});
+// Deno.test("Plex.watch calls the passed handler", () => {});

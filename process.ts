@@ -54,12 +54,12 @@ class Process extends EventTarget {
     return this;
   }
 
-  watch(options: WatchOptions) {
+  watch(options?: Partial<WatchOptions>) {
     watch({
-      ...options,
+      ...(options ?? {}),
       handle: (e: any) => {
-        console.log(e);
         this.kill();
+        options?.handle?.(e);
         this.start();
       }
     });
@@ -111,11 +111,24 @@ class Plex {
     return this;
   }
 
-  start(handler?: CustomEventHandler) {
-    if (typeof handler === "function") {
-      this.listen(handler);
-    }
+  start() {
     this.processes.forEach(p => p.start());
+    return this;
+  }
+
+  kill() {
+    this.processes.forEach(p => p.kill());
+  }
+
+  watch(options?: Partial<WatchOptions>) {
+    watch({
+      ...(options ?? {}),
+      handle: (e: any) => {
+        this.kill();
+        options?.handle?.(e);
+        this.start();
+      }
+    });
     return this;
   }
 
