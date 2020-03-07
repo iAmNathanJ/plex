@@ -7,7 +7,7 @@ Simple process runner for [Deno] - a thin wrapper around `Deno.run`.
 ### Single Process
 
 ```js
-import { Process } from "https://denopkg.com/iamnathanj/plex@v1.1.0/mod.ts";
+import { Process } from "https://denopkg.com/iamnathanj/plex@v1.2.0/mod.ts";
 
 const proc = new Process({
   name: "my-process",
@@ -32,7 +32,7 @@ await proc.complete();
 ### Multiple Processes
 
 ```js
-import { Process, Plex } from "https://denopkg.com/iamnathanj/plex@v1.1.0/mod.ts";
+import { Process, Plex } from "https://denopkg.com/iamnathanj/plex@v1.2.0/mod.ts";
 
 const multiProcess = new Plex([
   new Process({
