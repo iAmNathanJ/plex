@@ -1,8 +1,7 @@
 import { watch, WatchOptions } from "./deps.ts";
 
 type OutputChannel = "stdout" | "stderr";
-type EventHandler = (event: Event) => void | null;
-type CustomEventHandler = (event: CustomEvent) => any;
+type CustomEventListener = (event: CustomEvent) => void | Promise<void>;
 
 type ProcessParams = {
   name: string;
@@ -44,13 +43,13 @@ class Process extends EventTarget {
     this.process.kill(1);
   }
 
-  on(type: OutputChannel, handler: CustomEventHandler) {
-    super.addEventListener(type, handler as EventHandler);
+  on(type: OutputChannel, handler: CustomEventListener) {
+    super.addEventListener(type, handler as EventListener);
     return this;
   }
 
-  off(type: OutputChannel, handler: CustomEventHandler) {
-    super.removeEventListener(type, handler as EventHandler);
+  off(type: OutputChannel, handler: CustomEventListener) {
+    super.removeEventListener(type, handler as EventListener);
     return this;
   }
 
@@ -86,7 +85,7 @@ class Plex {
   }
 
   listen(
-    handler: CustomEventHandler,
+    handler: CustomEventListener,
     channels: OutputChannel[] = ["stdout", "stderr"]
   ) {
     for (const p of this.processes) {
@@ -99,7 +98,7 @@ class Plex {
   }
 
   ignore(
-    handler: CustomEventHandler,
+    handler: CustomEventListener,
     channels: OutputChannel[] = ["stdout", "stderr"]
   ) {
     for (const p of this.processes) {

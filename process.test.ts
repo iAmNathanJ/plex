@@ -16,8 +16,7 @@ Deno.test("Process runs a process", async () => {
     .complete();
 
   await delay(1);
-  // @ts-ignore
-  assertEquals(output, "testing");
+  assertEquals(output!, "testing");
 });
 
 Deno.test("Plex runs multiple processes", async () => {
